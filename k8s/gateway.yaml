@@ -1,0 +1,66 @@
+# Part 1: the gateway pods
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+spec:
+  # Two identical pods: one can fail or restart while the other keeps serving
+  replicas: 2
+  # Keep 3 old ReplicaSets so rollbacks are possible
+  revisionHistoryLimit: 3
+  selector:
+    # The Deployment manages pods carrying this label...
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        # ...and the pods it creates get the same label (must match the selector)
+        app: gateway
+    spec:
+      containers:
+        - name: p4-gateway
+          # Same image as the API and worker; the command below picks the gateway code
+          image: p4-api:v6
+          # Overrides the image's default start command (app:app) to run gateway.py
+          command:
+            - gunicorn
+            - --bind
+            - 0.0.0.0:5000
+            # 2 processes x 4 threads: several requests at once, since each one waits on the model
+            - --workers
+            - "2"
+            - --threads
+            - "4"
+            - gateway:app
+          ports:
+            - containerPort: 5000
+          env:
+            # The model API key, read from the Secret `model-api`.
+            # Only the gateway gets it; workers and the API never see it.
+            - name: MODEL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: model-api
+                  key: MODEL_API_KEY
+          # The Service sends traffic only to pods that pass this check
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+---
+# Part 2: the stable name workers call (http://gateway)
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+spec:
+  # Sends traffic to any pod labelled app: gateway
+  selector:
+    app: gateway
+  ports:
+    # Callers use port 80; it forwards to port 5000 inside the pod
+    - port: 80
+      targetPort: 5000

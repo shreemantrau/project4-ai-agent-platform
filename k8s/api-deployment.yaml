@@ -1,0 +1,59 @@
+# Deployment: keeps 3 copies of the API running and replaces any that die.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    app: api
+spec:
+  replicas: 3
+  # How many old ReplicaSets (previous versions) to keep for rollback.
+  # Older ones are deleted automatically. The default is 10.
+  revisionHistoryLimit: 3
+  # Which pods this Deployment manages. Must match the pod labels in the
+  # template below.
+  selector:
+    matchLabels:
+      app: api
+  # Blueprint used to create every pod.
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: p4-api
+        image: p4-api:v6
+        # Environment variables from a ConfigMap: every key in api-config
+        # (GREETING) becomes an environment variable in the container.
+        envFrom:
+        - configMapRef:
+            name: api-config
+        # Single environment variables taken from Secrets. Only the key named
+        # here is exposed (not the whole Secret), and the values never appear
+        # in this file.
+        env:
+        - name: QUEUE_CONNECTION_STRING   # where the queue is and how to log in
+          valueFrom:
+            secretKeyRef:
+              name: queue-conn
+              key: QUEUE_CONNECTION_STRING
+        # Readiness probe: "can this pod take traffic?"
+        # If it fails, the pod is taken out of the Service's endpoints (no
+        # traffic) but is NOT restarted. Used while the app is starting up.
+        readinessProbe:
+          httpGet:                 # check by making an HTTP request
+            path: /health          # the route in app.py
+            port: 5000             # the port the app listens on in the pod
+          initialDelaySeconds: 3   # wait 3s after the container starts, then check
+          periodSeconds: 5         # repeat the check every 5s
+        # Liveness probe: "is this container stuck?"
+        # If it fails repeatedly, Kubernetes restarts the container. Used for
+        # an app that is running but no longer answering.
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10  # wait 10s after start so a slow start is not mistaken for stuck
+          periodSeconds: 10        # repeat the check every 10s
+          failureThreshold: 3      # restart after 3 failed checks in a row (about 30s)

@@ -1,0 +1,42 @@
+# Azurite: a free local emulator of Azure Storage. Used instead of a real
+# Azure Storage Queue while building locally; the API and workers use the
+# same SDK and code against it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: azurite
+  labels:
+    app: azurite
+spec:
+  replicas: 1          # one emulator; data lives only as long as the pod
+  selector:
+    matchLabels:
+      app: azurite
+  template:
+    metadata:
+      labels:
+        app: azurite
+    spec:
+      containers:
+      - name: azurite
+        image: mcr.microsoft.com/azure-storage/azurite
+        # Run only the queue service (the image starts blob, queue and table
+        # by default). 0.0.0.0 = listen on all interfaces so other pods can
+        # reach it. skipApiVersionCheck stops Azurite rejecting newer SDK
+        # versions it does not know yet.
+        command: ["azurite-queue", "--queueHost", "0.0.0.0", "--skipApiVersionCheck", "--disableProductStyleUrl"]
+        ports:
+        - containerPort: 10001   # Azurite's queue port
+---
+# Service: a stable name (azurite) and address for the emulator, the same way
+# api-svc fronts the API pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: azurite
+spec:
+  selector:
+    app: azurite
+  ports:
+  - port: 10001
+    targetPort: 10001

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  # KEDA overrides this count based on the queue length
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: p4-worker
+          # v6 contains the worker that calls the gateway
+          image: p4-api:v6
+          # Run the worker script instead of the image's default (the API)
+          command: ["python", "worker.py"]
+          env:
+            # Where the gateway lives: its Service name
+            - name: GATEWAY_URL
+              value: "http://gateway"
+            # Queue connection; no model key here on purpose
+            - name: QUEUE_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: queue-conn
+                  key: QUEUE_CONNECTION_STRING

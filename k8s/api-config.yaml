@@ -1,0 +1,11 @@
+# ConfigMap: plain (non-secret) settings stored in the cluster. Pods read
+# these as environment variables, so changing a setting does not need a new
+# image.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  # Key = the environment variable name the app reads (see app.py).
+  GREETING: "same image, new config"
+  

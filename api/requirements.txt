@@ -1,0 +1,13 @@
+# Version ranges: ~= allows compatible updates (same as >=3.1,<4) but blocks
+# the next major version, so builds stay predictable.
+# can use either of the syntaxes
+# flask>=3.1,<4
+flask~=3.1
+
+# Production web server. Replaces Flask's built-in development server, and
+# shuts down cleanly when Kubernetes sends the stop signal.
+gunicorn~=23.0
+
+# Client library for Azure Storage Queues. Works against Azurite locally and
+# a real Azure Storage Queue in the cloud with the same code.
+azure-storage-queue~=12.9
