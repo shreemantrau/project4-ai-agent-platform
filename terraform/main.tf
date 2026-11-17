@@ -10,7 +10,7 @@ data "azurerm_resource_group" "main" {
 // cost reports. Defined once here and reused with local.tags.
 locals {
   tags = {
-    project = "project4-ai-agent-platform"
+    project    = "project4-ai-agent-platform"
     managed_by = "terraform"
   }
 }
